@@ -182,16 +182,6 @@ tab1, tab2 = st.tabs(["🔎 Live Prediction", "📊 Dataset Analysis"])
 with tab1:
     st.header("🔎 Enter News for Prediction")
     
-    # --- ADDED: "Test with Sample" buttons ---
-    if not df.empty:
-        st.subheader("Test with a Dataset Sample")
-        col_btn1, col_btn2 = st.columns(2)
-        if col_btn1.button("Load Random REAL News Sample"):
-            sample_text = df[df['label'] == 1].sample(1)['full_text'].iloc[0]
-            st.session_state.user_input = sample_text
-        if col_btn2.button("Load Random FAKE News Sample"):
-            sample_text = df[df['label'] == 0].sample(1)['full_text'].iloc[0]
-            st.session_state.user_input = sample_text
     
     if 'user_input' not in st.session_state:
         st.session_state.user_input = ""
