@@ -5,13 +5,13 @@ import pandas as pd
 import re
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
-# import plotly.express as px # Not needed if analysis is disabled
-# from collections import Counter # Not needed if analysis is disabled
+import plotly.express as px
+from collections import Counter
 
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.sequence import pad_sequences
-# from nltk.util import ngrams # Not needed if analysis is disabled
-from nltk.tokenize import word_tokenize, sent_tokenize # Still needed for OOV check
+from nltk.util import ngrams
+from nltk.tokenize import word_tokenize, sent_tokenize
 import nltk
 
 from io import StringIO
@@ -46,6 +46,7 @@ except Exception as e:
 
 # -------------------------------
 # Helper function: clean and preprocess text
+# (This is the correct version)
 # -------------------------------
 def clean_text(text, for_ngrams=False):
     if not isinstance(text, str):
@@ -53,50 +54,86 @@ def clean_text(text, for_ngrams=False):
     text = text.lower()
     text = re.sub(r'http\S+|www.\S+', ' ', text)   # remove URLs
     text = re.sub(r'<[^>]+>', ' ', text)           # remove HTML tags
-    text = re.sub(r'[^a-z\s]', ' ', text)      # remove special chars/numbers
+    if not for_ngrams:
+        text = re.sub(r'[^a-z\s]', ' ', text)      # remove special chars/numbers
+    else:
+        # For n-grams, keep basic punctuation
+        text = re.sub(r'[^a-z\s\.\?!]', ' ', text) 
     text = re.sub(r'\s+', ' ', text).strip()       # remove extra spaces
     return text
 
 # -------------------------------
 # Load data (for Analysis Tab)
-# --- DISABLED TO SAVE RAM ---
+# --- MODIFIED: Loads only 1000 rows to save RAM ---
 # -------------------------------
 @st.cache_data
 def load_data():
     try:
-        # Sirf 1000 rows load karein
+        # Only load 1000 rows to prevent RAM crash
         fake_df = pd.read_csv('fake.csv', nrows=1000) 
         true_df = pd.read_csv('true.csv', nrows=1000)
         
-        # --- YEH LOGIC MISSING THA ---
+        # --- This logic was missing from your code ---
         fake_df['label'] = 0
         true_df['label'] = 1
         
         df = pd.concat([fake_df, true_df], axis=0)
         
         if 'text' not in df.columns or 'title' not in df.columns:
-             st.error("Dataset (sample) mein 'text' ya 'title' column nahin hai.")
+             st.error("Dataset (sample) is missing 'text' or 'title' column.")
              return pd.DataFrame()
 
         df['full_text'] = df['title'].fillna('') + " " + df['text'].fillna('')
         
-        # Cleaned text column banayein (WordCloud aur N-grams ke liye)
+        # Create cleaned columns for different analyses
         df['cleaned_text_wc'] = df['full_text'].apply(lambda x: clean_text(x, for_ngrams=False))
         df['cleaned_text_ngrams'] = df['full_text'].apply(lambda x: clean_text(x, for_ngrams=True))
         
         df = df.sample(frac=1).reset_index(drop=True)
         
-        return df # <-- YEH RETURN ZAROORI HAI
+        return df # <-- This return is essential
     
     except FileNotFoundError:
-        st.sidebar.error("Analysis ke liye 'fake.csv' ya 'true.csv' file nahin mili.")
+        st.sidebar.error("For analysis, 'fake.csv' or 'true.csv' not found.")
         return pd.DataFrame()
     except Exception as e:
-        st.error(f"Data load karne mein error: {e}")
+        st.error(f"Error loading data: {e}")
         return pd.DataFrame()
 
-# YEH LINE BINA INDENTATION KE HONI CHAHIYE
+# This line must be outside the function
 df = load_data()
+
+# -------------------------------
+# Helper function: Create Word Cloud
+# --- ADDED: This function was missing ---
+# -------------------------------
+def create_wordcloud(text_data, title):
+    st.subheader(title)
+    if pd.isna(text_data) or not text_data:
+        st.info("No text data available for this category.")
+        return
+    try:
+        wc = WordCloud(width=800, height=400, background_color="white", max_words=100, collocations=False).generate(text_data)
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.imshow(wc, interpolation="bilinear")
+        ax.axis("off")
+        st.pyplot(fig)
+    except Exception as e:
+        st.error(f"Could not generate WordCloud: {e}")
+
+# -------------------------------
+# Helper function: Get N-grams
+# --- ADDED: This function was missing ---
+# -------------------------------
+def get_top_ngrams(corpus, n=2, top_k=20):
+    tokens = word_tokenize(corpus)
+    n_grams = ngrams(tokens, n)
+    n_gram_counts = Counter(n_grams)
+    top_ngrams = n_gram_counts.most_common(top_k)
+    # Format for plotting
+    df_ngrams = pd.DataFrame(top_ngrams, columns=['n_gram', 'count'])
+    df_ngrams['n_gram'] = df_ngrams['n_gram'].apply(lambda x: ' '.join(x))
+    return df_ngrams
 
 # -------------------------------
 # Helper function: Get Model Summary
@@ -118,9 +155,9 @@ st.markdown("---")
 # -------------------------------
 st.sidebar.header("About")
 st.sidebar.info("""
-This dashboard performs **Live Prediction** to predict if any news article is Real or Fake.
-
-*(The Dataset Analysis tab is disabled to conserve resources for the free deployment.)*
+This dashboard performs two functions:
+1.  **Live Prediction:** Predicts if any news article is Real or Fake.
+2.  **Dataset Analysis:** Shows an in-depth analysis of the training data.
 """)
 
 if model_loaded:
@@ -135,16 +172,26 @@ if 'history' not in st.session_state:
 
 # -------------------------------
 # CREATE TABS
-# --- UPDATED: Only one tab is created ---
+# --- UN-COMMENTED: Both tabs are now active ---
 # -------------------------------
-# tab1, tab2 = st.tabs(["🔎 Live Prediction", "📊 Dataset Analysis"])
-tab1, = st.tabs(["🔎 Live Prediction"]) # <-- Only create one tab
+tab1, tab2 = st.tabs(["🔎 Live Prediction", "📊 Dataset Analysis"])
 
 # -------------------------------
 # TAB 1: LIVE PREDICTION
 # -------------------------------
 with tab1:
     st.header("🔎 Enter News for Prediction")
+    
+    # --- ADDED: "Test with Sample" buttons ---
+    if not df.empty:
+        st.subheader("Test with a Dataset Sample")
+        col_btn1, col_btn2 = st.columns(2)
+        if col_btn1.button("Load Random REAL News Sample"):
+            sample_text = df[df['label'] == 1].sample(1)['full_text'].iloc[0]
+            st.session_state.user_input = sample_text
+        if col_btn2.button("Load Random FAKE News Sample"):
+            sample_text = df[df['label'] == 0].sample(1)['full_text'].iloc[0]
+            st.session_state.user_input = sample_text
     
     if 'user_input' not in st.session_state:
         st.session_state.user_input = ""
@@ -208,8 +255,92 @@ with tab1:
 
 # -------------------------------
 # TAB 2: DATASET ANALYSIS
-# --- DISABLED TO SAVE RAM ---
+# --- UN-COMMENTED: This tab is now active ---
 # -------------------------------
-# with tab2:
-    st.header("📊 Training Dataset Analysis")
-#     ... (All code for Tab 2 is disabled)
+with tab2:
+    st.header("📊 Training Dataset Analysis (Sample of 2000 Articles)")
+    
+    if df.empty:
+        st.error("Could not load dataset. Check 'fake.csv' and 'true.csv' files.")
+    else:
+        st.info("This analysis is based on a sample of 1000 'Real' and 1000 'Fake' articles from the dataset.")
+        
+        # --- Section 1: Overview & Distribution ---
+        st.subheader("1. Data Sample & Distribution")
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            st.dataframe(df[['full_text', 'label']].head(10))
+        with col2:
+            dist_data = df['label'].value_counts().rename({0: 'Fake', 1: 'Real'})
+            st.bar_chart(dist_data)
+            st.write(f"**Total Articles in Sample:** {len(df)}")
+            st.write(f"**Real News (Sample):** {dist_data.get('Real', 0)}")
+            st.write(f"**Fake News (Sample):** {dist_data.get('Fake', 0)}")
+        
+        st.markdown("---")
+
+        # --- Section 2: Text Statistics ---
+        st.subheader("2. Comparative Text Statistics")
+        if 'stats_df' not in st.session_state:
+            real_stats = df[df['label'] == 1]['full_text']
+            fake_stats = df[df['label'] == 0]['full_text']
+            
+            stats_data = {
+                'Metric': ['Avg. Word Count', 'Avg. Sentence Length', 'Avg. Word Length'],
+                'Real News': [
+                    np.mean(real_stats.apply(lambda x: len(word_tokenize(x)))),
+                    np.mean(real_stats.apply(lambda x: np.mean([len(word_tokenize(sent)) for sent in sent_tokenize(x)]) if sent_tokenize(x) else 0)),
+                    np.mean(real_stats.apply(lambda x: np.mean([len(word) for word in word_tokenize(x)]) if word_tokenize(x) else 0))
+                ],
+                'Fake News': [
+                    np.mean(fake_stats.apply(lambda x: len(word_tokenize(x)))),
+                    np.mean(fake_stats.apply(lambda x: np.mean([len(word_tokenize(sent)) for sent in sent_tokenize(x)]) if sent_tokenize(x) else 0)),
+                    np.mean(fake_stats.apply(lambda x: np.mean([len(word) for word in word_tokenize(x)]) if word_tokenize(x) else 0))
+                ]
+            }
+            stats_df = pd.DataFrame(stats_data).set_index('Metric')
+            st.session_state.stats_df = stats_df
+        
+        st.dataframe(st.session_state.stats_df.style.format("{:.2f}"))
+
+        st.markdown("---")
+
+        # --- Section 3: Word Clouds ---
+        st.subheader("3. Word Cloud Analysis")
+        col3, col4 = st.columns(2)
+        with col3:
+            real_text_wc = " ".join(df[df['label'] == 1]['cleaned_text_wc'].dropna())
+            create_wordcloud(real_text_wc, "Real News Word Cloud")
+        with col4:
+            fake_text_wc = " ".join(df[df['label'] == 0]['cleaned_text_wc'].dropna())
+            create_wordcloud(fake_text_wc, "Fake News Word Cloud")
+            
+        st.markdown("---")
+
+        # --- Section 4: N-gram Analysis ---
+        st.subheader("4. Common Phrase (N-gram) Analysis")
+        st.info("This shows the most common 2-word (bigram) and 3-word (trigram) phrases.")
+        
+        col5, col6 = st.columns(2)
+        
+        # Join text for n-gram analysis
+        real_text_ngrams = " ".join(df[df['label'] == 1]['cleaned_text_ngrams'].dropna())
+        fake_text_ngrams = " ".join(df[df['label'] == 0]['cleaned_text_ngrams'].dropna())
+
+        with col5:
+            st.write("**Top 20 Bigrams (2-word) in Real News**")
+            df_real_bi = get_top_ngrams(real_text_ngrams, n=2, top_k=20)
+            st.dataframe(df_real_bi, use_container_width=True)
+            
+            st.write("**Top 20 Bigrams (2-word) in Fake News**")
+            df_fake_bi = get_top_ngrams(fake_text_ngrams, n=2, top_k=20)
+            st.dataframe(df_fake_bi, use_container_width=True)
+        
+        with col6:
+            st.write("**Top 20 Trigrams (3-word) in Real News**")
+            df_real_tri = get_top_ngrams(real_text_ngrams, n=3, top_k=20)
+            st.dataframe(df_real_tri, use_container_width=True)
+
+            st.write("**Top 20 Trigrams (3-word) in Fake News**")
+            df_fake_tri = get_top_ngrams(fake_text_ngrams, n=3, top_k=20)
+            st.dataframe(df_fake_tri, use_container_width=True)
