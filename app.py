@@ -5,14 +5,19 @@ import pandas as pd
 import re
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
+# import plotly.express as px # Not needed if analysis is disabled
+# from collections import Counter # Not needed if analysis is disabled
+
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.sequence import pad_sequences
-from io import StringIO
+# from nltk.util import ngrams # Not needed if analysis is disabled
+from nltk.tokenize import word_tokenize, sent_tokenize # Still needed for OOV check
 import nltk
 
+from io import StringIO
+
 # -------------------------------
-# Download NLTK data (for word_tokenize in the helper)
-# We only need 'punkt'
+# Download NLTK data (Fixes the LookupError)
 # -------------------------------
 @st.cache_resource
 def download_nltk_data():
@@ -23,13 +28,10 @@ def download_nltk_data():
 download_nltk_data()
 
 # -------------------------------
-# Load trained model and tokenizer (for Live Prediction)
+# Load trained model and tokenizer (Using your filenames)
 # -------------------------------
-# --- THIS IS THE CRITICAL FIX ---
-# Use the new, 99% accuracy model you trained
-MODEL_PATH = "fake_news_model.h5"
-TOKENIZER_PATH = "tokenizer.pkl"
-# --------------------------------
+MODEL_PATH = "fake_news_model.h5"  # <-- Your correct file
+TOKENIZER_PATH = "tokenizer.pkl" # <-- Your correct file
 
 try:
     model = load_model(MODEL_PATH)
@@ -51,23 +53,21 @@ def clean_text(text, for_ngrams=False):
     text = text.lower()
     text = re.sub(r'http\S+|www.\S+', ' ', text)   # remove URLs
     text = re.sub(r'<[^>]+>', ' ', text)           # remove HTML tags
-    if not for_ngrams:
-        text = re.sub(r'[^a-z\s]', ' ', text)      # remove special chars/numbers
-    else:
-        text = re.sub(r'[^a-z\s\.\?!]', ' ', text) 
+    text = re.sub(r'[^a-z\s]', ' ', text)      # remove special chars/numbers
     text = re.sub(r'\s+', ' ', text).strip()       # remove extra spaces
     return text
 
 # -------------------------------
 # Load data (for Analysis Tab)
-# --- REMOVED TO FIX 1GB RAM CRASH ---
+# --- DISABLED TO SAVE RAM ---
 # -------------------------------
 # @st.cache_data
 # def load_data():
-#     ... (This whole function is removed)
-#
-# df = load_data() 
-# ---------------------------------
+#     try:
+#         fake_df = pd.read_csv('fake.csv')
+#         true_df = pd.read_csv('true.csv')
+# ... (rest of function commented out)
+# df = load_data()
 
 
 # -------------------------------
@@ -82,7 +82,7 @@ def get_model_summary(model):
 # Streamlit layout
 # -------------------------------
 st.set_page_config(page_title="📰 Fake News Dashboard", layout="wide")
-st.markdown("<h1 style='text-align:center;color:#4B0082;'>📰 Fake News Detection</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center;color:#4B0082;'>📰 Fake News Detection & Analysis</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
 # -------------------------------
@@ -90,9 +90,9 @@ st.markdown("---")
 # -------------------------------
 st.sidebar.header("About")
 st.sidebar.info("""
-This dashboard performs **Live Prediction** to detect if a news article is Real or Fake.
+This dashboard performs **Live Prediction** to predict if any news article is Real or Fake.
 
-(The 'Dataset Analysis' tab has been disabled to meet resource limits on Streamlit Cloud.)
+*(The Dataset Analysis tab is disabled to conserve resources for the free deployment.)*
 """)
 
 if model_loaded:
@@ -107,9 +107,10 @@ if 'history' not in st.session_state:
 
 # -------------------------------
 # CREATE TABS
-# --- MODIFIED TO SHOW ONLY ONE TAB ---
+# --- UPDATED: Only one tab is created ---
 # -------------------------------
-tab1, = st.tabs(["🔎 Live Prediction"])
+# tab1, tab2 = st.tabs(["🔎 Live Prediction", "📊 Dataset Analysis"])
+tab1, = st.tabs(["🔎 Live Prediction"]) # <-- Only create one tab
 
 # -------------------------------
 # TAB 1: LIVE PREDICTION
@@ -176,3 +177,11 @@ with tab1:
         st.dataframe(df_history, use_container_width=True)
     else:
         st.info("No predictions yet. Enter news above.")
+
+# -------------------------------
+# TAB 2: DATASET ANALYSIS
+# --- DISABLED TO SAVE RAM ---
+# -------------------------------
+# with tab2:
+#     st.header("📊 Training Dataset Analysis")
+#     ... (All code for Tab 2 is disabled)
