@@ -84,10 +84,17 @@ The application will automatically open in your default web browser at http://lo
 
 .
 ├── 📄 app.py                     # The main Streamlit application code
+
 ├── 📦 fake_news_model.h5         # The trained Keras (LSTM) model
+
 ├── 📦 tokenizer.pkl                # The Keras tokenizer file
+
 ├── 📜 model-final-training.ipynb  # Jupyter Notebook with the model training process
+
 ├── 📝 requirements.txt             # List of all Python dependencies
+
 ├── 📊 fake.csv                    # Original training data (for reference)
+
 ├── 📊 true.csv                    # Original training data (for reference)
+
 └── 📖 README.md                    # This file
