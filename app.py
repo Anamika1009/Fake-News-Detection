@@ -61,14 +61,42 @@ def clean_text(text, for_ngrams=False):
 # Load data (for Analysis Tab)
 # --- DISABLED TO SAVE RAM ---
 # -------------------------------
-# @st.cache_data
-# def load_data():
-#     try:
-#         fake_df = pd.read_csv('fake.csv')
-#         true_df = pd.read_csv('true.csv')
-# ... (rest of function commented out)
-# df = load_data()
+@st.cache_data
+def load_data():
+    try:
+        # Sirf 1000 rows load karein
+        fake_df = pd.read_csv('fake.csv', nrows=1000) 
+        true_df = pd.read_csv('true.csv', nrows=1000)
+        
+        # --- YEH LOGIC MISSING THA ---
+        fake_df['label'] = 0
+        true_df['label'] = 1
+        
+        df = pd.concat([fake_df, true_df], axis=0)
+        
+        if 'text' not in df.columns or 'title' not in df.columns:
+             st.error("Dataset (sample) mein 'text' ya 'title' column nahin hai.")
+             return pd.DataFrame()
 
+        df['full_text'] = df['title'].fillna('') + " " + df['text'].fillna('')
+        
+        # Cleaned text column banayein (WordCloud aur N-grams ke liye)
+        df['cleaned_text_wc'] = df['full_text'].apply(lambda x: clean_text(x, for_ngrams=False))
+        df['cleaned_text_ngrams'] = df['full_text'].apply(lambda x: clean_text(x, for_ngrams=True))
+        
+        df = df.sample(frac=1).reset_index(drop=True)
+        
+        return df # <-- YEH RETURN ZAROORI HAI
+    
+    except FileNotFoundError:
+        st.sidebar.error("Analysis ke liye 'fake.csv' ya 'true.csv' file nahin mili.")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Data load karne mein error: {e}")
+        return pd.DataFrame()
+
+# YEH LINE BINA INDENTATION KE HONI CHAHIYE
+df = load_data()
 
 # -------------------------------
 # Helper function: Get Model Summary
@@ -183,5 +211,5 @@ with tab1:
 # --- DISABLED TO SAVE RAM ---
 # -------------------------------
 # with tab2:
-#     st.header("📊 Training Dataset Analysis")
+     st.header("📊 Training Dataset Analysis")
 #     ... (All code for Tab 2 is disabled)
