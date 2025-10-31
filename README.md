@@ -82,7 +82,7 @@ The application will automatically open in your default web browser at http://lo
 
 📁 Project Structure
 
-.
+
 ├── 📄 app.py                     # The main Streamlit application code
 
 ├── 📦 fake_news_model.h5         # The trained Keras (LSTM) model
