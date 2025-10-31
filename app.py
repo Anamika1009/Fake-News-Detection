@@ -211,5 +211,5 @@ with tab1:
 # --- DISABLED TO SAVE RAM ---
 # -------------------------------
 # with tab2:
-     st.header("📊 Training Dataset Analysis")
+    st.header("📊 Training Dataset Analysis")
 #     ... (All code for Tab 2 is disabled)
