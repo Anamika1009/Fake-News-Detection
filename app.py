@@ -27,8 +27,8 @@ download_nltk_data()
 # -------------------------------
 # --- THIS IS THE CRITICAL FIX ---
 # Use the new, 99% accuracy model you trained
-MODEL_PATH = "fake_news_model_simple.h5"
-TOKENIZER_PATH = "tokenizer_simple.pkl"
+MODEL_PATH = "fake_news_model.h5"
+TOKENIZER_PATH = "tokenizer.pkl"
 # --------------------------------
 
 try:
